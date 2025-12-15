@@ -9,6 +9,8 @@ gwf = Workflow()
 # Uses the baboondiversity environment. Requirements are mostly bcftools and rfmix.
 
 path_to_vcfs = "/home/eriks/baboondiversity/data/PG_panu3_phased_chromosomes_4_7_2021/chr{}/chr{}.phased.rehead.vcf.gz"
+path_to_gog_mik = "/home/eriks/baboondiversity/data/PG_panu3_phased_chromosomes_4_7_2021/sim_haptools/chr{}_gog_gog.vcf.gz"
+path_to_mik_gog = "/home/eriks/baboondiversity/data/PG_panu3_phased_chromosomes_4_7_2021/sim_haptools/chr{}_mik_gog.vcf.gz"
 x_all_path = "/home/eriks/baboondiversity/data/PG_panu3_phased_chromosomes_4_7_2021/chrX_with_males/chrX_diploid_all_nomiss.vcf.gz"
 genetic_map = "/home/eriks/baboondiversity/data/PG_panu3_recombination_map/mikumi_pyrho_genetic_map_chr{}.txt"
 path_to_output = "steps/rfmix_gen100/"
@@ -79,6 +81,7 @@ for n in ref_name_list:
     # d["query_samples"] = list(query_df.PDGP_ID)
     # hap_inputs.append(d)
 
+
 ### Gwf functions
 
 def prep_rfmix(run_name, ref_samples, query_samples, out_suffix, chr_list, path_to_output):
@@ -113,6 +116,37 @@ def prep_rfmix(run_name, ref_samples, query_samples, out_suffix, chr_list, path_
     bcftools index {output_query}
     """.format(input_match=input_match, ref=ref, query=query,
                output_ref=output_ref, output_query=output_query)
+    return AnonymousTarget(inputs=inputs, outputs=outputs, options=options, spec=spec)
+
+
+def prep_rfmix_sim(run_name, path_to_sims, out_suffix, chr_list, path_to_output):
+    output_query = path_to_output + run_name + "/" + out_suffix+"_query.bcf"
+    input_match = path_to_sims.format("*", chr_list)
+    if out_suffix == "X_female":
+        chr_iter = "X"
+        inputs = path_to_sims.format(chr_iter, chr_iter)
+    elif out_suffix == "X_all":
+        inputs = x_all_path
+        input_match = x_all_path
+    else:
+        s_chr = chr_list.split("..")
+        chr_iter = list(range(int(s_chr[0][1:]), int(s_chr[1][:-1])))
+        inputs = [path_to_sims.format(x, x) for x in chr_iter]
+    outputs = [output_query]
+    options = {
+        "cores": 2,
+        "memory": "30g",
+        "walltime": "4:00:00",
+        "account": "baboondiversity"
+    }
+    spec = """
+
+    bcftools concat {input_match} | bcftools view -q 0.01:minor \
+    -O b -o {output_query} --force-samples
+    bcftools index {output_query}
+    """.format(input_match=input_match,
+            output_query=output_query)
+    print(spec)
     return AnonymousTarget(inputs=inputs, outputs=outputs, options=options, spec=spec)
 
 
@@ -194,3 +228,29 @@ for i in range(len(ref_name_list)):
                        "sample_map": file_name+"/ref_names.txt",
                        "genetic_map": path_to_output + "X_genetic_map.txt",
                        "output_path": file_name+"/all_"})
+    
+
+# Simulation runs. It is meant to replicate the Tanzania analysis, so it uses the same reference as that.
+
+os.makedirs(path_to_output+"/aut_sim", exist_ok=True)
+os.makedirs(path_to_output+"/aut_sim_gog_mik", exist_ok=True)
+os.makedirs(path_to_output+"/aut_sim_mik_gog", exist_ok=True)
+gwf.map(prep_rfmix_sim, [{"run_name": "aut_sim_gog_mik", "path_to_sims": path_to_gog_mik}], name="aut_sim_gog_mik",
+        extra={"out_suffix": "aut_sim_50gen_gog_mik", "chr_list": "{8..8}",
+               "path_to_output": path_to_output})
+gwf.map(rfmix, ["8"], name="rfmix_aut_sim_gog_mik",
+                extra={"query": path_to_output+"aut_sim_gog_mik/aut_sim_50gen_gog_mik_query.bcf",
+                       "reference": path_to_output+"tanzania_focus/aut_ref.bcf",
+                       "sample_map": path_to_output+"tanzania_focus/ref_names.txt",
+                       "genetic_map": path_to_output + "aut_genetic_map.txt",
+                       "output_path": path_to_output+"aut_sim_gog_mik/"})
+
+gwf.map(prep_rfmix_sim, [{"run_name": "aut_sim_mik_gog", "path_to_sims": path_to_mik_gog}], name="autosome_sim_mik_gog",
+        extra={"out_suffix": "aut_sim_50gen_mik_gog", "chr_list": "{8..8}",
+               "path_to_output": path_to_output})
+gwf.map(rfmix, ["8"], name="aut_sim_mik_gog",
+                extra={"query": path_to_output+"aut_sim_mik_gog/aut_sim_50gen_mik_gog_query.bcf",
+                       "reference": path_to_output+"tanzania_focus/aut_ref.bcf",
+                       "sample_map": path_to_output+"tanzania_focus/ref_names.txt",
+                       "genetic_map": path_to_output + "aut_genetic_map.txt",
+                       "output_path": path_to_output+"aut_sim_mik_gog/"})
