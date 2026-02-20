@@ -1,7 +1,7 @@
-# relate-clues
+# Negative selection on baboon admixture is strongest on chromosome X
 
-My implementation of a workflow using relate and clues to detect selection.
+Workflows are run using gwf: https://gwf.app/
 
-You have to supply the path to relate in the workflow file.
+Analysis and visualization is done in jupyter notebooks.
 
-Consider making it into a configuration file, as mentioned in https://gwf.app/guide/patterns/#external-configuration-of-workflows
+Many of the final plots were produced in notebooks/rfmix14_diversity_and_admixture.ipynb
