@@ -31,27 +31,46 @@ full_list = ['Cynocephalus, Central Tanzania', 'Anubis, Kenya', 'Kindae, Zambia'
 ref_name_list = [["tanzania_focus", ['Ursinus, Zambia', 'Kindae, Zambia',
             'Hamadryas, Ethiopia', 'Papio, Senegal']],
                 ["eth_olive_focus", ['Hamadryas, Ethiopia', 'Papio, Senegal',
-            'Cynocephalus, Central Tanzania', 'Anubis, Tanzania']]]
+            'Cynocephalus, Central Tanzania', 'Anubis, Tanzania']],
+                ["tanzania_close_focus", ['Serengeti, Tanzania', 'Mikumi, Tanzania']]]
+
 
 map_inputs = []
 
 for n in ref_name_list:
     os.makedirs(path_to_output+"/"+n[0], exist_ok=True)
-    meta_data_samples_sub = meta_data_samples.loc[meta_data_samples.C_origin.isin(n[1])]
-    query_samples = meta_data_samples.loc[~(meta_data_samples.C_origin.isin(n[1])) &
-                                        (meta_data_samples.C_origin != "Gelada, Captive")]
-    pop_df = pd.DataFrame({"PDGP_ID": meta_data_samples_sub.PGDP_ID,
-                           "population": meta_data_samples_sub.C_origin})
-    pop_df.to_csv(path_to_output+"/"+n[0]+"/ref_names.txt",
-                  index=False, header=False, sep="\t")
+    if n[0] == "tanzania_close_focus":
+        meta_data_samples_sub = meta_data_samples.loc[meta_data_samples.Origin.isin(n[1])]
+        query_samples = meta_data_samples.loc[~(meta_data_samples.Origin.isin(n[1])) &
+                                            (meta_data_samples.Origin != "Gelada, Captive")]
+        pop_df = pd.DataFrame({"PDGP_ID": meta_data_samples_sub.PGDP_ID,
+                               "population": meta_data_samples_sub.Origin})
+        pop_df.to_csv(path_to_output+"/"+n[0]+"/ref_names.txt",
+                      index=False, header=False, sep="\t")
     
-    ref_samples_f = meta_data_samples.loc[~(meta_data_samples.C_origin.isin(n[1])) &
-                                        (meta_data_samples.C_origin != "Gelada, Captive") &
-                                        (meta_data_samples.Sex == "F")]
-    pop_df = pd.DataFrame({"PDGP_ID": meta_data_samples_sub.PGDP_ID,
-                           "population": meta_data_samples_sub.C_origin})
-    pop_df.to_csv(path_to_output+"/"+n[0]+"/female_ref_names.txt",
-                  index=False, header=False, sep="\t")
+        ref_samples_f = meta_data_samples.loc[~(meta_data_samples.Origin.isin(n[1])) &
+                                            (meta_data_samples.Origin != "Gelada, Captive") &
+                                            (meta_data_samples.Sex == "F")]
+        pop_df = pd.DataFrame({"PDGP_ID": meta_data_samples_sub.PGDP_ID,
+                               "population": meta_data_samples_sub.Origin})
+        pop_df.to_csv(path_to_output+"/"+n[0]+"/female_ref_names.txt",
+                      index=False, header=False, sep="\t")
+    else:
+        meta_data_samples_sub = meta_data_samples.loc[meta_data_samples.C_origin.isin(n[1])]
+        query_samples = meta_data_samples.loc[~(meta_data_samples.C_origin.isin(n[1])) &
+                                            (meta_data_samples.C_origin != "Gelada, Captive")]
+        pop_df = pd.DataFrame({"PDGP_ID": meta_data_samples_sub.PGDP_ID,
+                               "population": meta_data_samples_sub.C_origin})
+        pop_df.to_csv(path_to_output+"/"+n[0]+"/ref_names.txt",
+                      index=False, header=False, sep="\t")
+    
+        ref_samples_f = meta_data_samples.loc[~(meta_data_samples.C_origin.isin(n[1])) &
+                                            (meta_data_samples.C_origin != "Gelada, Captive") &
+                                            (meta_data_samples.Sex == "F")]
+        pop_df = pd.DataFrame({"PDGP_ID": meta_data_samples_sub.PGDP_ID,
+                               "population": meta_data_samples_sub.C_origin})
+        pop_df.to_csv(path_to_output+"/"+n[0]+"/female_ref_names.txt",
+                      index=False, header=False, sep="\t")
     d = {}
     d["run_name"] = n[0]
     d["ref_samples"] =list(meta_data_samples_sub.PGDP_ID)
@@ -228,29 +247,35 @@ for i in range(len(ref_name_list)):
                        "sample_map": file_name+"/ref_names.txt",
                        "genetic_map": path_to_output + "X_genetic_map.txt",
                        "output_path": file_name+"/all_"})
+    gwf.map(rfmix, ["X"], name="rfmix_X_female_ref"+n,
+                extra={"query": file_name+"/X_all_query.bcf", "reference": file_name+"/X_female_ref.bcf",
+                       "sample_map": file_name+"/female_ref_names.txt",
+                       "genetic_map": path_to_output + "X_genetic_map.txt",
+                       "output_path": file_name+"/female_ref_"})
     
 
-# Simulation runs. It is meant to replicate the Tanzania analysis, so it uses the same reference as that.
+# # Simulation runs. It is meant to replicate the Tanzania analysis, so it uses the same reference as that.
 
-os.makedirs(path_to_output+"/aut_sim", exist_ok=True)
-os.makedirs(path_to_output+"/aut_sim_gog_mik", exist_ok=True)
-os.makedirs(path_to_output+"/aut_sim_mik_gog", exist_ok=True)
-gwf.map(prep_rfmix_sim, [{"run_name": "aut_sim_gog_mik", "path_to_sims": path_to_gog_mik}], name="aut_sim_gog_mik",
-        extra={"out_suffix": "aut_sim_50gen_gog_mik", "chr_list": "{8..8}",
-               "path_to_output": path_to_output})
-gwf.map(rfmix, ["8"], name="rfmix_aut_sim_gog_mik",
-                extra={"query": path_to_output+"aut_sim_gog_mik/aut_sim_50gen_gog_mik_query.bcf",
-                       "reference": path_to_output+"tanzania_focus/aut_ref.bcf",
-                       "sample_map": path_to_output+"tanzania_focus/ref_names.txt",
-                       "genetic_map": path_to_output + "aut_genetic_map.txt",
-                       "output_path": path_to_output+"aut_sim_gog_mik/"})
+# os.makedirs(path_to_output+"/aut_sim", exist_ok=True)
+# os.makedirs(path_to_output+"/aut_sim_gog_mik", exist_ok=True)
+# os.makedirs(path_to_output+"/aut_sim_mik_gog", exist_ok=True)
+# gwf.map(prep_rfmix_sim, [{"run_name": "aut_sim_gog_mik", "path_to_sims": path_to_gog_mik}], name="aut_sim_gog_mik",
+#         extra={"out_suffix": "aut_sim_50gen_gog_mik", "chr_list": "{8..8}",
+#                "path_to_output": path_to_output})
+# gwf.map(rfmix, ["8"], name="rfmix_aut_sim_gog_mik",
+#                 extra={"query": path_to_output+"aut_sim_gog_mik/aut_sim_50gen_gog_mik_query.bcf",
+#                        "reference": path_to_output+"tanzania_focus/aut_ref.bcf",
+#                        "sample_map": path_to_output+"tanzania_focus/ref_names.txt",
+#                        "genetic_map": path_to_output + "aut_genetic_map.txt",
+#                        "output_path": path_to_output+"aut_sim_gog_mik/"})
 
-gwf.map(prep_rfmix_sim, [{"run_name": "aut_sim_mik_gog", "path_to_sims": path_to_mik_gog}], name="autosome_sim_mik_gog",
-        extra={"out_suffix": "aut_sim_50gen_mik_gog", "chr_list": "{8..8}",
-               "path_to_output": path_to_output})
-gwf.map(rfmix, ["8"], name="aut_sim_mik_gog",
-                extra={"query": path_to_output+"aut_sim_mik_gog/aut_sim_50gen_mik_gog_query.bcf",
-                       "reference": path_to_output+"tanzania_focus/aut_ref.bcf",
-                       "sample_map": path_to_output+"tanzania_focus/ref_names.txt",
-                       "genetic_map": path_to_output + "aut_genetic_map.txt",
-                       "output_path": path_to_output+"aut_sim_mik_gog/"})
+# gwf.map(prep_rfmix_sim, [{"run_name": "aut_sim_mik_gog", "path_to_sims": path_to_mik_gog}], name="autosome_sim_mik_gog",
+#         extra={"out_suffix": "aut_sim_50gen_mik_gog", "chr_list": "{8..8}",
+#                "path_to_output": path_to_output})
+# gwf.map(rfmix, ["8"], name="aut_sim_mik_gog",
+#                 extra={"query": path_to_output+"aut_sim_mik_gog/aut_sim_50gen_mik_gog_query.bcf",
+#                        "reference": path_to_output+"tanzania_focus/aut_ref.bcf",
+#                        "sample_map": path_to_output+"tanzania_focus/ref_names.txt",
+#                        "genetic_map": path_to_output + "aut_genetic_map.txt",
+#                        "output_path": path_to_output+"aut_sim_mik_gog/"})
+
