@@ -9,7 +9,7 @@ gwf = Workflow()
 # Uses the baboondiversity environment. Requirements are mostly bcftools and rfmix.
 
 path_to_vcfs = "/home/eriks/baboondiversity/data/PG_panu3_phased_chromosomes_4_7_2021/chr{}/chr{}.phased.rehead.vcf.gz"
-path_to_gog_mik = "/home/eriks/baboondiversity/data/PG_panu3_phased_chromosomes_4_7_2021/sim_haptools/chr{}_gog_gog.vcf.gz"
+path_to_gog_mik = "/home/eriks/baboondiversity/data/PG_panu3_phased_chromosomes_4_7_2021/sim_haptools/chr{}_gog_mik.vcf.gz"
 path_to_mik_gog = "/home/eriks/baboondiversity/data/PG_panu3_phased_chromosomes_4_7_2021/sim_haptools/chr{}_mik_gog.vcf.gz"
 x_all_path = "/home/eriks/baboondiversity/data/PG_panu3_phased_chromosomes_4_7_2021/chrX_with_males/chrX_diploid_all_nomiss.vcf.gz"
 genetic_map = "/home/eriks/baboondiversity/data/PG_panu3_recombination_map/mikumi_pyrho_genetic_map_chr{}.txt"
@@ -260,23 +260,22 @@ os.makedirs(path_to_output+"/aut_sim", exist_ok=True)
 os.makedirs(path_to_output+"/aut_sim_gog_mik", exist_ok=True)
 os.makedirs(path_to_output+"/aut_sim_mik_gog", exist_ok=True)
 
-# gwf.map(prep_rfmix_sim, [{"run_name": "aut_sim_gog_mik", "path_to_sims": path_to_gog_mik}], name="aut_sim_gog_mik",
-#         extra={"out_suffix": "aut_sim_50gen_gog_mik", "chr_list": "{8..8}",
-#                "path_to_output": path_to_output})
-# gwf.map(rfmix, ["8"], name="rfmix_aut_sim_gog_mik",
-#                 extra={"query": path_to_output+"aut_sim_gog_mik/aut_sim_50gen_gog_mik_query.bcf",
-#                        "reference": path_to_output+"tanzania_focus/aut_ref.bcf",
-#                        "sample_map": path_to_output+"tanzania_focus/ref_names.txt",
-#                        "genetic_map": path_to_output + "aut_genetic_map.txt",
-#                        "output_path": path_to_output+"aut_sim_gog_mik/"})
-
-gwf.map(prep_rfmix_sim, [{"run_name": "aut_sim_mik_gog", "path_to_sims": path_to_mik_gog}], name="autosome_sim_mik_gog",
-        extra={"out_suffix": "aut_sim_50gen_mik_gog", "chr_list": "{8..8}",
+gwf.map(prep_rfmix_sim, [{"run_name": "aut_sim_gog_mik", "path_to_sims": path_to_gog_mik}], name="aut_sim_gog_mik",
+        extra={"out_suffix": "aut_sim_50gen_gog_mik", "chr_list": "{8..8}",
                "path_to_output": path_to_output})
-gwf.map(rfmix, ["8"], name="aut_sim_mik_gog",
-                extra={"query": path_to_output+"aut_sim_mik_gog/aut_sim_50gen_mik_gog_query.bcf",
+gwf.map(rfmix, ["8"], name="rfmix_aut_sim_gog_mik",
+                extra={"query": path_to_output+"aut_sim_gog_mik/aut_sim_50gen_gog_mik_query.bcf",
                        "reference": path_to_output+"tanzania_focus/aut_ref.bcf",
                        "sample_map": path_to_output+"tanzania_focus/ref_names.txt",
                        "genetic_map": path_to_output + "aut_genetic_map.txt",
-                       "output_path": path_to_output+"aut_sim_mik_gog/"})
+                       "output_path": path_to_output+"aut_sim_gog_mik/"})
 
+# gwf.map(prep_rfmix_sim, [{"run_name": "aut_sim_mik_gog", "path_to_sims": path_to_mik_gog}], name="autosome_sim_mik_gog",
+#         extra={"out_suffix": "aut_sim_50gen_mik_gog", "chr_list": "{8..8}",
+#                "path_to_output": path_to_output})
+# gwf.map(rfmix, ["8"], name="aut_sim_mik_gog",
+#                 extra={"query": path_to_output+"aut_sim_mik_gog/aut_sim_50gen_mik_gog_query.bcf",
+#                        "reference": path_to_output+"tanzania_focus/aut_ref.bcf",
+#                        "sample_map": path_to_output+"tanzania_focus/ref_names.txt",
+#                        "genetic_map": path_to_output + "aut_genetic_map.txt",
+#                        "output_path": path_to_output+"aut_sim_mik_gog/"})
