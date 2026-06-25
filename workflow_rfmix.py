@@ -256,9 +256,10 @@ for i in range(len(ref_name_list)):
 
 # # Simulation runs. It is meant to replicate the Tanzania analysis, so it uses the same reference as that.
 
-# os.makedirs(path_to_output+"/aut_sim", exist_ok=True)
-# os.makedirs(path_to_output+"/aut_sim_gog_mik", exist_ok=True)
-# os.makedirs(path_to_output+"/aut_sim_mik_gog", exist_ok=True)
+os.makedirs(path_to_output+"/aut_sim", exist_ok=True)
+os.makedirs(path_to_output+"/aut_sim_gog_mik", exist_ok=True)
+os.makedirs(path_to_output+"/aut_sim_mik_gog", exist_ok=True)
+
 # gwf.map(prep_rfmix_sim, [{"run_name": "aut_sim_gog_mik", "path_to_sims": path_to_gog_mik}], name="aut_sim_gog_mik",
 #         extra={"out_suffix": "aut_sim_50gen_gog_mik", "chr_list": "{8..8}",
 #                "path_to_output": path_to_output})
@@ -269,13 +270,13 @@ for i in range(len(ref_name_list)):
 #                        "genetic_map": path_to_output + "aut_genetic_map.txt",
 #                        "output_path": path_to_output+"aut_sim_gog_mik/"})
 
-# gwf.map(prep_rfmix_sim, [{"run_name": "aut_sim_mik_gog", "path_to_sims": path_to_mik_gog}], name="autosome_sim_mik_gog",
-#         extra={"out_suffix": "aut_sim_50gen_mik_gog", "chr_list": "{8..8}",
-#                "path_to_output": path_to_output})
-# gwf.map(rfmix, ["8"], name="aut_sim_mik_gog",
-#                 extra={"query": path_to_output+"aut_sim_mik_gog/aut_sim_50gen_mik_gog_query.bcf",
-#                        "reference": path_to_output+"tanzania_focus/aut_ref.bcf",
-#                        "sample_map": path_to_output+"tanzania_focus/ref_names.txt",
-#                        "genetic_map": path_to_output + "aut_genetic_map.txt",
-#                        "output_path": path_to_output+"aut_sim_mik_gog/"})
+gwf.map(prep_rfmix_sim, [{"run_name": "aut_sim_mik_gog", "path_to_sims": path_to_mik_gog}], name="autosome_sim_mik_gog",
+        extra={"out_suffix": "aut_sim_50gen_mik_gog", "chr_list": "{8..8}",
+               "path_to_output": path_to_output})
+gwf.map(rfmix, ["8"], name="aut_sim_mik_gog",
+                extra={"query": path_to_output+"aut_sim_mik_gog/aut_sim_50gen_mik_gog_query.bcf",
+                       "reference": path_to_output+"tanzania_focus/aut_ref.bcf",
+                       "sample_map": path_to_output+"tanzania_focus/ref_names.txt",
+                       "genetic_map": path_to_output + "aut_genetic_map.txt",
+                       "output_path": path_to_output+"aut_sim_mik_gog/"})
 
