@@ -32,14 +32,17 @@ ref_name_list = [["tanzania_focus", ['Ursinus, Zambia', 'Kindae, Zambia',
             'Hamadryas, Ethiopia', 'Papio, Senegal']],
                 ["eth_olive_focus", ['Hamadryas, Ethiopia', 'Papio, Senegal',
             'Cynocephalus, Central Tanzania', 'Anubis, Tanzania']],
-                ["tanzania_close_focus", ['Serengeti, Tanzania', 'Mikumi, Tanzania']]]
+                ["tanzania_close_focus", ['Serengeti, Tanzania', 'Mikumi, Tanzania']],
+                ["tanzania_pure_focus", ['Gog Woreda, Gambella region, Ethiopia',
+                                         'Mahale, Tanzania', 'Mikumi, Tanzania']]]
 
 
 map_inputs = []
 
 for n in ref_name_list:
     os.makedirs(path_to_output+"/"+n[0], exist_ok=True)
-    if n[0] == "tanzania_close_focus":
+    os.makedirs(path_to_output+"/"+n[0]+"_plain", exist_ok=True)
+    if n[0] == "tanzania_close_focus" or n[0] == "tanzania_pure_focus":
         meta_data_samples_sub = meta_data_samples.loc[meta_data_samples.Origin.isin(n[1])]
         query_samples = meta_data_samples.loc[~(meta_data_samples.Origin.isin(n[1])) &
                                             (meta_data_samples.Origin != "Gelada, Captive")]
@@ -186,6 +189,24 @@ def rfmix(chrom, query, reference, sample_map, genetic_map, output_path):
     """.format(query, reference, sample_map, m, output, chrom)
     return AnonymousTarget(inputs=inputs, outputs=outputs, options=options, spec=spec)
 
+
+def rfmix_plain(chrom, query, reference, sample_map, genetic_map, output_path):
+    # Run with "low" memory, then with higher memory to complete all jobs
+    output = output_path + "chr" + str(chrom)
+    m = genetic_map
+    inputs = [query, reference, m]
+    outputs = [output + ".msp.tsv"]
+    options = {
+        "cores": 10,
+        "memory": "200g",
+        "walltime": "12:00:00",
+        "account": "baboondiversity"
+    }
+    spec = """
+    rfmix -f {} -r {} -m {} -g {} -o {} --chromosome=chr{} -e 5 -G 100
+    """.format(query, reference, sample_map, m, output, chrom)
+    return AnonymousTarget(inputs=inputs, outputs=outputs, options=options, spec=spec)
+
 ### Function calls
 
 
@@ -213,6 +234,11 @@ for i in range(len(ref_name_list)):
                        "sample_map": file_name+"/ref_names.txt",
                        "genetic_map": path_to_output + "aut_genetic_map.txt",
                        "output_path": file_name+"/"})
+    # gwf.map(rfmix_plain, autosomes, name="rfmix_plain_"+n,
+    #             extra={"query": file_name+"/aut_query.bcf", "reference": file_name+"/aut_ref.bcf",
+    #                    "sample_map": file_name+"/ref_names.txt",
+    #                    "genetic_map": path_to_output + "aut_genetic_map.txt",
+    #                    "output_path": file_name+"_plain/"})
 
 
 if not os.path.exists(path_to_output + "X_genetic_map.txt"):
@@ -252,6 +278,22 @@ for i in range(len(ref_name_list)):
                        "sample_map": file_name+"/female_ref_names.txt",
                        "genetic_map": path_to_output + "X_genetic_map.txt",
                        "output_path": file_name+"/female_ref_"})
+    # # Plain runs
+    # gwf.map(rfmix, ["X"], name="rfmix_X_female_plain"+n,
+    #             extra={"query": file_name+"/X_female_query.bcf", "reference": file_name+"/X_female_ref.bcf",
+    #                    "sample_map": file_name+"/female_ref_names.txt",
+    #                    "genetic_map": path_to_output + "X_genetic_map.txt",
+    #                    "output_path": file_name+"_plain/female_"})
+    # gwf.map(rfmix, ["X"], name="rfmix_X_all_plain"+n,
+    #             extra={"query": file_name+"/X_all_query.bcf", "reference": file_name+"/X_all_ref.bcf",
+    #                    "sample_map": file_name+"/ref_names.txt",
+    #                    "genetic_map": path_to_output + "X_genetic_map.txt",
+    #                    "output_path": file_name+"_plain/all_"})
+    # gwf.map(rfmix, ["X"], name="rfmix_X_female_ref_plain"+n,
+    #             extra={"query": file_name+"/X_all_query.bcf", "reference": file_name+"/X_female_ref.bcf",
+    #                    "sample_map": file_name+"/female_ref_names.txt",
+    #                    "genetic_map": path_to_output + "X_genetic_map.txt",
+    #                    "output_path": file_name+"_plain/female_ref_"})
     
 
 # # Simulation runs. It is meant to replicate the Tanzania analysis, so it uses the same reference as that.
