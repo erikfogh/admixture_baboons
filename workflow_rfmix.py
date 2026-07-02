@@ -9,8 +9,9 @@ gwf = Workflow()
 # Uses the baboondiversity environment. Requirements are mostly bcftools and rfmix.
 
 path_to_vcfs = "/home/eriks/baboondiversity/data/PG_panu3_phased_chromosomes_4_7_2021/chr{}/chr{}.phased.rehead.vcf.gz"
+sim_base = "/home/eriks/baboondiversity/data/PG_panu3_phased_chromosomes_4_7_2021/sim_haptools/"
 path_to_gog_mik = "/home/eriks/baboondiversity/data/PG_panu3_phased_chromosomes_4_7_2021/sim_haptools/chr{}_gog_mik.vcf.gz"
-path_to_mik_gog = "/home/eriks/baboondiversity/data/PG_panu3_phased_chromosomes_4_7_2021/sim_haptools/chr{}_mik_gog.vcf.gz"
+#path_to_mik_gog = "/home/eriks/baboondiversity/data/PG_panu3_phased_chromosomes_4_7_2021/sim_haptools/chr{}_mik_gog.vcf.gz"
 x_all_path = "/home/eriks/baboondiversity/data/PG_panu3_phased_chromosomes_4_7_2021/chrX_with_males/chrX_diploid_all_nomiss.vcf.gz"
 genetic_map = "/home/eriks/baboondiversity/data/PG_panu3_recombination_map/mikumi_pyrho_genetic_map_chr{}.txt"
 path_to_output = "steps/rfmix_gen100/"
@@ -138,6 +139,24 @@ def prep_rfmix(run_name, ref_samples, query_samples, out_suffix, chr_list, path_
     bcftools index {output_query}
     """.format(input_match=input_match, ref=ref, query=query,
                output_ref=output_ref, output_query=output_query)
+    return AnonymousTarget(inputs=inputs, outputs=outputs, options=options, spec=spec)
+
+
+def haptools_sim(model, map_file, chr_number, in_vcf, sample_tsv, out_vcf):
+    inputs=[model, map_file, in_vcf, sample_tsv]
+    outputs = [out_vcf]
+    options = {
+        "cores": 4,
+        "memory": "30g",
+        "walltime": "12:00:00",
+        "account": "baboondiversity"
+    }
+    spec = """
+    haptools simgenotype --model {model}  --mapdir {map_file} --chroms {chr_number} \
+    --ref_vcf {in_vcf} --sample_info {sample_tsv} --out {out_vcf}
+    """.format(model=model, map_file=map_file, chr_number=chr_number,
+               in_vcf=in_vcf, sample_tsv=sample_tsv, out_vcf=out_vcf)
+    print(spec)
     return AnonymousTarget(inputs=inputs, outputs=outputs, options=options, spec=spec)
 
 
@@ -298,9 +317,10 @@ for i in range(len(ref_name_list)):
 
 # # Simulation runs. It is meant to replicate the Tanzania analysis, so it uses the same reference as that.
 
-os.makedirs(path_to_output+"/aut_sim", exist_ok=True)
-os.makedirs(path_to_output+"/aut_sim_gog_mik", exist_ok=True)
-os.makedirs(path_to_output+"/aut_sim_mik_gog", exist_ok=True)
+os.makedirs(path_to_output+"aut_sim/", exist_ok=True)
+os.makedirs(path_to_output+"aut_sim_gog_mik/", exist_ok=True)
+os.makedirs(path_to_output+"x_sim_gog_mik/", exist_ok=True)
+
 
 gwf.map(prep_rfmix_sim, [{"run_name": "aut_sim_gog_mik", "path_to_sims": path_to_gog_mik}], name="aut_sim_gog_mik",
         extra={"out_suffix": "aut_sim_50gen_gog_mik", "chr_list": "{8..8}",
