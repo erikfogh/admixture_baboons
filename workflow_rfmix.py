@@ -10,8 +10,7 @@ gwf = Workflow()
 
 path_to_vcfs = "/home/eriks/baboondiversity/data/PG_panu3_phased_chromosomes_4_7_2021/chr{}/chr{}.phased.rehead.vcf.gz"
 sim_base = "/home/eriks/baboondiversity/data/PG_panu3_phased_chromosomes_4_7_2021/sim_haptools/"
-path_to_gog_mik = "/home/eriks/baboondiversity/data/PG_panu3_phased_chromosomes_4_7_2021/sim_haptools/chr{}_gog_mik.vcf.gz"
-#path_to_mik_gog = "/home/eriks/baboondiversity/data/PG_panu3_phased_chromosomes_4_7_2021/sim_haptools/chr{}_mik_gog.vcf.gz"
+path_to_sims = "/home/eriks/baboondiversity/data/PG_panu3_phased_chromosomes_4_7_2021/sim_haptools/"
 x_all_path = "/home/eriks/baboondiversity/data/PG_panu3_phased_chromosomes_4_7_2021/chrX_with_males/chrX_diploid_all_nomiss.vcf.gz"
 genetic_map = "/home/eriks/baboondiversity/data/PG_panu3_recombination_map/mikumi_pyrho_genetic_map_chr{}.txt"
 path_to_output = "steps/rfmix_gen100/"
@@ -142,37 +141,9 @@ def prep_rfmix(run_name, ref_samples, query_samples, out_suffix, chr_list, path_
     return AnonymousTarget(inputs=inputs, outputs=outputs, options=options, spec=spec)
 
 
-def haptools_sim(model, map_file, chr_number, in_vcf, sample_tsv, out_vcf):
-    inputs=[model, map_file, in_vcf, sample_tsv]
-    outputs = [out_vcf]
-    options = {
-        "cores": 4,
-        "memory": "30g",
-        "walltime": "12:00:00",
-        "account": "baboondiversity"
-    }
-    spec = """
-    haptools simgenotype --model {model}  --mapdir {map_file} --chroms {chr_number} \
-    --ref_vcf {in_vcf} --sample_info {sample_tsv} --out {out_vcf}
-    """.format(model=model, map_file=map_file, chr_number=chr_number,
-               in_vcf=in_vcf, sample_tsv=sample_tsv, out_vcf=out_vcf)
-    print(spec)
-    return AnonymousTarget(inputs=inputs, outputs=outputs, options=options, spec=spec)
-
-
 def prep_rfmix_sim(run_name, path_to_sims, out_suffix, chr_list, path_to_output):
-    output_query = path_to_output + run_name + "/" + out_suffix+"_query.bcf"
-    input_match = path_to_sims.format("*", chr_list)
-    if out_suffix == "X_female":
-        chr_iter = "X"
-        inputs = path_to_sims.format(chr_iter, chr_iter)
-    elif out_suffix == "X_all":
-        inputs = x_all_path
-        input_match = x_all_path
-    else:
-        s_chr = chr_list.split("..")
-        chr_iter = list(range(int(s_chr[0][1:]), int(s_chr[1][:-1])))
-        inputs = [path_to_sims.format(x, x) for x in chr_iter]
+    output_query = path_to_output + out_suffix+"_query.bcf"
+    inputs = [path_to_sims]
     outputs = [output_query]
     options = {
         "cores": 2,
@@ -181,17 +152,16 @@ def prep_rfmix_sim(run_name, path_to_sims, out_suffix, chr_list, path_to_output)
         "account": "baboondiversity"
     }
     spec = """
-
-    bcftools concat {input_match} | bcftools view -q 0.01:minor \
+    bcftools concat {path_to_sims} | bcftools view -q 0.01:minor \
     -O b -o {output_query} --force-samples
     bcftools index {output_query}
-    """.format(input_match=input_match,
+    """.format(path_to_sims=path_to_sims,
             output_query=output_query)
-    print(spec)
+    # print(spec)
     return AnonymousTarget(inputs=inputs, outputs=outputs, options=options, spec=spec)
 
 
-def rfmix(chrom, query, reference, sample_map, genetic_map, output_path):
+def rfmix(chrom, query, reference, sample_map, genetic_map, output_path, gen=100):
     # Run with "low" memory, then with higher memory to complete all jobs
     output = output_path + "chr" + str(chrom)
     m = genetic_map
@@ -204,12 +174,12 @@ def rfmix(chrom, query, reference, sample_map, genetic_map, output_path):
         "account": "baboondiversity"
     }
     spec = """
-    rfmix -f {} -r {} -m {} -g {} -o {} --chromosome=chr{} -e 3 -G 100 --reanalyze-reference
-    """.format(query, reference, sample_map, m, output, chrom)
+    rfmix -f {} -r {} -m {} -g {} -o {} --chromosome=chr{} -e 3 -G {} --reanalyze-reference
+    """.format(query, reference, sample_map, m, output, chrom, gen)
     return AnonymousTarget(inputs=inputs, outputs=outputs, options=options, spec=spec)
 
 
-def rfmix_plain(chrom, query, reference, sample_map, genetic_map, output_path):
+def rfmix_plain(chrom, query, reference, sample_map, genetic_map, output_path, gen=100):
     # Run with "low" memory, then with higher memory to complete all jobs
     output = output_path + "chr" + str(chrom)
     m = genetic_map
@@ -222,8 +192,8 @@ def rfmix_plain(chrom, query, reference, sample_map, genetic_map, output_path):
         "account": "baboondiversity"
     }
     spec = """
-    rfmix -f {} -r {} -m {} -g {} -o {} --chromosome=chr{} -e 5 -G 100
-    """.format(query, reference, sample_map, m, output, chrom)
+    rfmix -f {} -r {} -m {} -g {} -o {} --chromosome=chr{} -e 5 -G {}
+    """.format(query, reference, sample_map, m, output, chrom, gen)
     return AnonymousTarget(inputs=inputs, outputs=outputs, options=options, spec=spec)
 
 ### Function calls
@@ -253,11 +223,11 @@ for i in range(len(ref_name_list)):
                        "sample_map": file_name+"/ref_names.txt",
                        "genetic_map": path_to_output + "aut_genetic_map.txt",
                        "output_path": file_name+"/"})
-    # gwf.map(rfmix_plain, autosomes, name="rfmix_plain_"+n,
-    #             extra={"query": file_name+"/aut_query.bcf", "reference": file_name+"/aut_ref.bcf",
-    #                    "sample_map": file_name+"/ref_names.txt",
-    #                    "genetic_map": path_to_output + "aut_genetic_map.txt",
-    #                    "output_path": file_name+"_plain/"})
+    gwf.map(rfmix_plain, autosomes, name="rfmix_plain_"+n,
+                extra={"query": file_name+"/aut_query.bcf", "reference": file_name+"/aut_ref.bcf",
+                       "sample_map": file_name+"/ref_names.txt",
+                       "genetic_map": path_to_output + "aut_genetic_map.txt",
+                       "output_path": file_name+"_plain/"})
 
 
 if not os.path.exists(path_to_output + "X_genetic_map.txt"):
@@ -297,47 +267,130 @@ for i in range(len(ref_name_list)):
                        "sample_map": file_name+"/female_ref_names.txt",
                        "genetic_map": path_to_output + "X_genetic_map.txt",
                        "output_path": file_name+"/female_ref_"})
-    # # Plain runs
-    # gwf.map(rfmix, ["X"], name="rfmix_X_female_plain"+n,
-    #             extra={"query": file_name+"/X_female_query.bcf", "reference": file_name+"/X_female_ref.bcf",
-    #                    "sample_map": file_name+"/female_ref_names.txt",
-    #                    "genetic_map": path_to_output + "X_genetic_map.txt",
-    #                    "output_path": file_name+"_plain/female_"})
-    # gwf.map(rfmix, ["X"], name="rfmix_X_all_plain"+n,
-    #             extra={"query": file_name+"/X_all_query.bcf", "reference": file_name+"/X_all_ref.bcf",
-    #                    "sample_map": file_name+"/ref_names.txt",
-    #                    "genetic_map": path_to_output + "X_genetic_map.txt",
-    #                    "output_path": file_name+"_plain/all_"})
-    # gwf.map(rfmix, ["X"], name="rfmix_X_female_ref_plain"+n,
-    #             extra={"query": file_name+"/X_all_query.bcf", "reference": file_name+"/X_female_ref.bcf",
-    #                    "sample_map": file_name+"/female_ref_names.txt",
-    #                    "genetic_map": path_to_output + "X_genetic_map.txt",
-    #                    "output_path": file_name+"_plain/female_ref_"})
+    # Plain runs
+    gwf.map(rfmix, ["X"], name="rfmix_X_female_plain"+n,
+                extra={"query": file_name+"/X_female_query.bcf", "reference": file_name+"/X_female_ref.bcf",
+                       "sample_map": file_name+"/female_ref_names.txt",
+                       "genetic_map": path_to_output + "X_genetic_map.txt",
+                       "output_path": file_name+"_plain/female_"})
+    gwf.map(rfmix, ["X"], name="rfmix_X_all_plain"+n,
+                extra={"query": file_name+"/X_all_query.bcf", "reference": file_name+"/X_all_ref.bcf",
+                       "sample_map": file_name+"/ref_names.txt",
+                       "genetic_map": path_to_output + "X_genetic_map.txt",
+                       "output_path": file_name+"_plain/all_"})
+    gwf.map(rfmix, ["X"], name="rfmix_X_female_ref_plain"+n,
+                extra={"query": file_name+"/X_all_query.bcf", "reference": file_name+"/X_female_ref.bcf",
+                       "sample_map": file_name+"/female_ref_names.txt",
+                       "genetic_map": path_to_output + "X_genetic_map.txt",
+                       "output_path": file_name+"_plain/female_ref_"})
     
 
 # # Simulation runs. It is meant to replicate the Tanzania analysis, so it uses the same reference as that.
 
-os.makedirs(path_to_output+"aut_sim/", exist_ok=True)
-os.makedirs(path_to_output+"aut_sim_gog_mik/", exist_ok=True)
-os.makedirs(path_to_output+"x_sim_gog_mik/", exist_ok=True)
+os.makedirs(path_to_output+"sim_results/", exist_ok=True)
+os.makedirs(path_to_output+"sim_results_plain/", exist_ok=True)
 
 
-gwf.map(prep_rfmix_sim, [{"run_name": "aut_sim_gog_mik", "path_to_sims": path_to_gog_mik}], name="aut_sim_gog_mik",
-        extra={"out_suffix": "aut_sim_50gen_gog_mik", "chr_list": "{8..8}",
-               "path_to_output": path_to_output})
-gwf.map(rfmix, ["8"], name="rfmix_aut_sim_gog_mik",
-                extra={"query": path_to_output+"aut_sim_gog_mik/aut_sim_50gen_gog_mik_query.bcf",
+sim_settings = [{"run_name": "aut_50", "model": "gog_mikumi_50gen.dat", "chrom": "8"},
+                  {"run_name": "X_50", "model": "gog_mikumi_50gen.dat", "chrom": "X"},
+                  {"run_name": "X_250", "model": "gog_mikumi_250gen.dat", "chrom": "X"}]
+
+sim_list_dict = []
+for s in sim_settings:
+    d = {}
+    d["run_name"] = s["run_name"]
+    d["path_to_sims"] = path_to_sims+s["run_name"]+s["model"].split(".")[0]+".vcf.gz"
+    d["out_suffix"] = "chr{}_sim_{}".format(s["chrom"], s["model"].split(".")[0])
+    d["chr_list"] = "{"+s["chrom"]+".."+s["chrom"]+"}"
+    sim_list_dict.append(d)
+
+gwf.map(prep_rfmix_sim, sim_list_dict, name="sims",
+        extra={"path_to_output": path_to_output+"sim_results/"})
+
+gen_list = [50, 100, 250, 500, 1000]
+
+for g in gen_list:
+    output_add = "infer{}_".format(g)
+    gwf.map(rfmix, ["8"], name="rfmix_aut_sim_gog_mik"+output_add,
+                extra={"query": path_to_output+"sim_results/chr8_sim_gog_mikumi_50gen_query.bcf",
                        "reference": path_to_output+"tanzania_focus/aut_ref.bcf",
                        "sample_map": path_to_output+"tanzania_focus/ref_names.txt",
                        "genetic_map": path_to_output + "aut_genetic_map.txt",
-                       "output_path": path_to_output+"aut_sim_gog_mik/"})
+                       "output_path": path_to_output+"sim_results/"+output_add,
+                       "gen": g})
 
-# gwf.map(prep_rfmix_sim, [{"run_name": "aut_sim_mik_gog", "path_to_sims": path_to_mik_gog}], name="autosome_sim_mik_gog",
-#         extra={"out_suffix": "aut_sim_50gen_mik_gog", "chr_list": "{8..8}",
-#                "path_to_output": path_to_output})
-# gwf.map(rfmix, ["8"], name="aut_sim_mik_gog",
-#                 extra={"query": path_to_output+"aut_sim_mik_gog/aut_sim_50gen_mik_gog_query.bcf",
-#                        "reference": path_to_output+"tanzania_focus/aut_ref.bcf",
-#                        "sample_map": path_to_output+"tanzania_focus/ref_names.txt",
-#                        "genetic_map": path_to_output + "aut_genetic_map.txt",
-#                        "output_path": path_to_output+"aut_sim_mik_gog/"})
+    gwf.map(rfmix, ["X"], name="rfmix_X50_sim_gog_mik"+output_add,
+                extra={"query": path_to_output+"sim_results/chrX_sim_gog_mikumi_50gen_query.bcf",
+                       "reference": path_to_output+"tanzania_focus/X_all_ref.bcf",
+                       "sample_map": path_to_output+"tanzania_focus/ref_names.txt",
+                       "genetic_map": path_to_output + "X_genetic_map.txt",
+                       "output_path": path_to_output+"sim_results/gen50_"+output_add,
+                       "gen": g})
+
+    gwf.map(rfmix, ["X"], name="rfmix_X50_sim_gog_mik_female"+output_add,
+                extra={"query": path_to_output+"sim_results/chrX_sim_gog_mikumi_50gen_query.bcf",
+                       "reference": path_to_output+"tanzania_focus/X_female_ref.bcf",
+                       "sample_map": path_to_output+"tanzania_focus/female_ref_names.txt",
+                       "genetic_map": path_to_output + "X_genetic_map.txt",
+                       "output_path": path_to_output+"sim_results/gen50_female_"+output_add,
+                       "gen": g})
+
+
+    gwf.map(rfmix, ["X"], name="rfmix_X250_sim_gog_mik"+output_add,
+                extra={"query": path_to_output+"sim_results/chrX_sim_gog_mikumi_250gen_query.bcf",
+                       "reference": path_to_output+"tanzania_focus/X_all_ref.bcf",
+                       "sample_map": path_to_output+"tanzania_focus/ref_names.txt",
+                       "genetic_map": path_to_output + "X_genetic_map.txt",
+                       "output_path": path_to_output+"sim_results/gen250_"+output_add,
+                       "gen": g})
+
+    gwf.map(rfmix, ["X"], name="rfmix_X250_sim_gog_mik_female"+output_add,
+                extra={"query": path_to_output+"sim_results/chrX_sim_gog_mikumi_250gen_query.bcf",
+                       "reference": path_to_output+"tanzania_focus/X_female_ref.bcf",
+                       "sample_map": path_to_output+"tanzania_focus/female_ref_names.txt",
+                       "genetic_map": path_to_output + "X_genetic_map.txt",
+                       "output_path": path_to_output+"sim_results/gen250_female_"+output_add,
+                       "gen": g})
+
+    # Plain runs
+
+    gwf.map(rfmix_plain, ["8"], name="rfmix_aut_sim_gog_mik_plain"+output_add,
+                extra={"query": path_to_output+"sim_results/chr8_sim_gog_mikumi_50gen_query.bcf",
+                       "reference": path_to_output+"tanzania_focus/aut_ref.bcf",
+                       "sample_map": path_to_output+"tanzania_focus/ref_names.txt",
+                       "genetic_map": path_to_output + "aut_genetic_map.txt",
+                       "output_path": path_to_output+"sim_results_plain/"+output_add,
+                       "gen": g})
+
+    gwf.map(rfmix_plain, ["X"], name="rfmix_X50_sim_gog_mik_plain"+output_add,
+                extra={"query": path_to_output+"sim_results/chrX_sim_gog_mikumi_50gen_query.bcf",
+                       "reference": path_to_output+"tanzania_focus/X_all_ref.bcf",
+                       "sample_map": path_to_output+"tanzania_focus/ref_names.txt",
+                       "genetic_map": path_to_output + "X_genetic_map.txt",
+                       "output_path": path_to_output+"sim_results_plain/gen50_"+output_add,
+                       "gen": g})
+
+    gwf.map(rfmix_plain, ["X"], name="rfmix_X50_sim_gog_mik_female_plain"+output_add,
+                extra={"query": path_to_output+"sim_results/chrX_sim_gog_mikumi_50gen_query.bcf",
+                       "reference": path_to_output+"tanzania_focus/X_female_ref.bcf",
+                       "sample_map": path_to_output+"tanzania_focus/female_ref_names.txt",
+                       "genetic_map": path_to_output + "X_genetic_map.txt",
+                       "output_path": path_to_output+"sim_results_plain/gen50_female_"+output_add,
+                       "gen": g})
+
+
+    gwf.map(rfmix_plain, ["X"], name="rfmix_X250_sim_gog_mik_plain"+output_add,
+                extra={"query": path_to_output+"sim_results/chrX_sim_gog_mikumi_250gen_query.bcf",
+                       "reference": path_to_output+"tanzania_focus/X_all_ref.bcf",
+                       "sample_map": path_to_output+"tanzania_focus/ref_names.txt",
+                       "genetic_map": path_to_output + "X_genetic_map.txt",
+                       "output_path": path_to_output+"sim_results_plain/gen250_"+output_add,
+                       "gen": g})
+
+    gwf.map(rfmix_plain, ["X"], name="rfmix_X250_sim_gog_mik_female_plain"+output_add,
+                extra={"query": path_to_output+"sim_results/chrX_sim_gog_mikumi_250gen_query.bcf",
+                       "reference": path_to_output+"tanzania_focus/X_female_ref.bcf",
+                       "sample_map": path_to_output+"tanzania_focus/female_ref_names.txt",
+                       "genetic_map": path_to_output + "X_genetic_map.txt",
+                       "output_path": path_to_output+"sim_results_plain/gen250_female_"+output_add,
+                       "gen": g})
