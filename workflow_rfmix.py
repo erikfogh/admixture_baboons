@@ -32,7 +32,7 @@ ref_name_list = [["tanzania_focus", ['Ursinus, Zambia', 'Kindae, Zambia',
             'Hamadryas, Ethiopia', 'Papio, Senegal']],
                 ["eth_olive_focus", ['Hamadryas, Ethiopia', 'Papio, Senegal',
             'Cynocephalus, Central Tanzania', 'Anubis, Tanzania']],
-                ["tanzania_close_focus", ['Serengeti, Tanzania', 'Mikumi, Tanzania']],
+                ["tanzania_gm_focus", ['Gog Woreda, Gambella region, Ethiopia', 'Mikumi, Tanzania']],
                 ["tanzania_pure_focus", ['Gog Woreda, Gambella region, Ethiopia',
                                          'Mahale, Tanzania', 'Mikumi, Tanzania']]]
 
@@ -42,7 +42,7 @@ map_inputs = []
 for n in ref_name_list:
     os.makedirs(path_to_output+"/"+n[0], exist_ok=True)
     os.makedirs(path_to_output+"/"+n[0]+"_plain", exist_ok=True)
-    if n[0] == "tanzania_close_focus" or n[0] == "tanzania_pure_focus":
+    if n[0] == "tanzania_gm_focus" or n[0] == "tanzania_pure_focus":
         meta_data_samples_sub = meta_data_samples.loc[meta_data_samples.Origin.isin(n[1])]
         query_samples = meta_data_samples.loc[~(meta_data_samples.Origin.isin(n[1])) &
                                             (meta_data_samples.Origin != "Gelada, Captive")]
